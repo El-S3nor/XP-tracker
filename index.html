@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>XP Tracker</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  body { font-family: system-ui,sans-serif; background:#0f172a; color:#e5e7eb; margin:0; padding:20px; }
+  h1 { text-align:center; }
+  .card { background:#020617; border-radius:12px; padding:16px; margin-bottom:16px; }
+  button { width:100%; padding:12px; margin:6px 0; font-size:16px; border-radius:8px; border:none; cursor:pointer; }
+  .good { background:#16a34a; color:white; }
+  .bad { background:#dc2626; color:white; }
+  .timer { font-size:20px; text-align:center; margin:10px 0; }
+  .stats { text-align:center; font-size:18px; }
+  .small { font-size:14px; opacity:0.8; }
+</style>
+</head>
+<body>
+<h1>XP Tracker</h1>
+
+<div class="card stats">
+  <div>XP Today: <strong id="xp">0</strong></div>
+  <div>Level: <strong id="level">1</strong></div>
+  <div>Streak: <strong id="streak">0</strong> days</div>
+  <div class="small" id="date"></div>
+</div>
+
+<div class="card">
+  <h3>Earn XP</h3>
+  <button class="good" onclick="addXP('exercise')">Exercise +15</button>
+  <button class="good" onclick="addXP('skill')">Skill Learning (15+ min) +15</button>
+  <button class="good" onclick="addXP('phoneMorning')">Phone-Free Morning +20</button>
+  <button class="good" onclick="addXP('phoneEvening')">Phone-Free Evening +20</button>
+  <button class="good" onclick="addXP('walk1')">Walk Loop 1 +5</button>
+  <button class="good" onclick="addXP('walk2')">Walk Loop 2 +5</button>
+  <button class="good" onclick="addXP('meditation')">Meditation (10+ min) +10</button>
+  <h4>Stretching +5 each</h4>
+  <button class="good" onclick="addXP('stretchLegs')">Legs</button>
+  <button class="good" onclick="addXP('stretchHips')">Hips</button>
+  <button class="good" onclick="addXP('stretchBack')">Back</button>
+  <button class="good" onclick="addXP('stretchShoulders')">Shoulders</button>
+  <h4>Water & Vitamins</h4>
+  <button class="good" onclick="addXP('water')">Drink Water +2 (stackable)</button>
+  <button class="good" onclick="addXP('vitamins')">Daily Vitamins +3</button>
+</div>
+
+<div class="card">
+  <h3>Phone Penalties</h3>
+  <button class="bad" onclick="addXP('game')">Phone Game −10</button>
+  <button class="bad" onclick="addXP('browser')">Browser Scrolling −10</button>
+  <button class="bad" onclick="addXP('phoneBed')">Phone in Bed −15</button>
+  <button class="bad" onclick="addXP('screenOver')">Screen Time >4hr −20</button>
+  <button class="bad" onclick="addXP('fap')">FAP −50</button>
+</div>
+
+<div class="card">
+  <h3>Focus Sprint Timer</h3>
+  <div class="timer" id="timerDisplay">00:00</div>
+  <button class="good" onclick="startSprint(15)">Start Short Sprint (15 min)</button>
+  <button class="good" onclick="startSprint(30)">Start Standard Sprint (30 min)</button>
+  <button class="good" onclick="completeSprint()">Complete Sprint</button>
+</div>
+
+<script>
+const today = new Date().toDateString();
+const maxPhoneXP = 20; // Daily phone allowance cap
+
+const defaultData = {
+  xp:0,
+  streak:0,
+  lastDate: today,
+  phoneXPUsed:0,
+  sprintActive:false,
+  sprintEnd: null
+};
+
+let data = JSON.parse(localStorage.getItem("xpData")) || defaultData;
+
+// Reset daily XP if new day
+if(data.lastDate !== today){
+  if(data.xp >= 50) data.streak++;
+  else data.streak = 0;
+  data.xp = 0;
+  data.phoneXPUsed = 0;
+  data.lastDate = today;
+  data.sprintActive = false;
+  data.sprintEnd = null;
+}
+
+function addXP(action){
+  let amount = 0;
+  switch(action){
+    // High-impact
+    case 'exercise': amount=15; break;
+    case 'skill': amount=15; break;
+    case 'phoneMorning': amount=20; break;
+    case 'phoneEvening': amount=20; break;
+    // Medium
+    case 'walk1': amount=5; break;
+    case 'walk2': amount=5; break;
+    case 'meditation': amount=10; break;
+    // Stretching
+    case 'stretchLegs': amount=5; break;
+    case 'stretchHips': amount=5; break;
+    case 'stretchBack': amount=5; break;
+    case 'stretchShoulders': amount=5; break;
+    // Low / stackable
+    case 'water': amount=2; break;
+    case 'vitamins': amount=3; break;
+    // Phone penalties
+    case 'game': amount=-10; break;
+    case 'browser': amount=-10; break;
+    case 'phoneBed': amount=-15; break;
+    case 'screenOver': amount=-20; break;
+    case 'fap': amount=-50; break;
+  }
+
+  // Track phone allowance for relevant penalties
+  if(['game','browser'].includes(action)){
+    if(data.phoneXPUsed + Math.abs(amount) > maxPhoneXP){
+      alert("Daily phone penalty limit reached");
+      return;
+    }
+    data.phoneXPUsed += Math.abs(amount);
+  }
+
+  data.xp += amount;
+  save();
+  render();
+}
+
+// Focus Sprint Timer
+function startSprint(minutes){
+  data.sprintActive = true;
+  const now = new Date();
+  data.sprintEnd = new Date(now.getTime() + minutes*60000).getTime();
+  save();
+  updateTimer();
+}
+
+function completeSprint(){
+  if(data.sprintActive){
+    const now = new Date().getTime();
+    if(now <= data.sprintEnd){
+      addXP('sprint'); // standard XP for completion
+      alert("Sprint complete! +15 XP");
+    } else {
+      alert("Sprint missed or late. No XP.");
+    }
+    data.sprintActive = false;
+    data.sprintEnd = null;
+    save();
+    render();
+  } else {
+    alert("No active sprint");
+  }
+}
+
+// XP for sprint completion
+function addXP(action){
+  if(action==='sprint') data.xp += 15;
+  else addXPOriginal(action);
+  save();
+  render();
+}
+
+// preserve original addXP for all other actions
+const addXPOriginal = addXP;
+window.addXP = addXP;
+
+function updateTimer(){
+  if(!data.sprintActive || !data.sprintEnd) return;
+  const now = new Date().getTime();
+  let diff = Math.max(0, data.sprintEnd - now);
+  const mins = Math.floor(diff/60000);
+  const secs = Math.floor((diff%60000)/1000);
+  document.getElementById("timerDisplay").textContent = 
+      `${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
+  if(diff>0) setTimeout(updateTimer,1000);
+  else document.getElementById("timerDisplay").textContent = "00:00";
+}
+
+function save(){
+  localStorage.setItem("xpData", JSON.stringify(data));
+}
+
+function render(){
+  document.getElementById("xp").textContent = data.xp;
+  document.getElementById("streak").textContent = data.streak;
+  document.getElementById("level").textContent = Math.floor(data.xp/300)+1;
+  document.getElementById("date").textContent = today;
+}
+
+render();
+updateTimer();
+</script>
+</body>
+</html>

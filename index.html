@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XP Tracker</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: #e5e7eb;
+  padding: 16px;
+}
+h1 { text-align: center; }
+.xp {
+  font-size: 32px;
+  text-align: center;
+  margin: 16px 0;
+}
+button, input {
+  width: 100%;
+  padding: 12px;
+  margin: 6px 0;
+  font-size: 16px;
+  border-radius: 8px;
+  border: none;
+}
+.good { background: #16a34a; color: white; }
+.bad { background: #dc2626; color: white; }
+.timer { background: #2563eb; color: white; }
+.locked { background: #334155; color: #94a3b8; }
+.section { margin-top: 24px; }
+</style>
+</head>
+
+<body>
+
+<h1>XP Tracker</h1>
+<div class="xp">XP: <span id="xp">0</span></div>
+
+<div class="section">
+<h3>Core Habits</h3>
+<button class="good" onclick="addXP(15)">Exercise (+15)</button>
+<button class="good" onclick="addXP(15)">Skill Learning 15m (+15)</button>
+<button class="good" onclick="addXP(10)">Meditation 10m (+10)</button>
+</div>
+
+<div class="section">
+<h3>Walking</h3>
+<button class="good" onclick="addXP(5)">Work Loop 1 (+5)</button>
+<button class="good" onclick="addXP(5)">Work Loop 2 (+5)</button>
+</div>
+
+<div class="section">
+<h3>Stretching</h3>
+<button class="good" onclick="addXP(5)">Legs (+5)</button>
+<button class="good" onclick="addXP(5)">Hips (+5)</button>
+<button class="good" onclick="addXP(5)">Back (+5)</button>
+<button class="good" onclick="addXP(5)">Shoulders (+5)</button>
+</div>
+
+<div class="section">
+<h3>Hydration & Health</h3>
+<button class="good" onclick="addXP(2)">Drink Water (+2)</button>
+<button class="good" onclick="addXP(2)">Drink Water (+2)</button>
+<button class="good" onclick="addXP(2)">Drink Water (+2)</button>
+<button class="good" onclick="addXP(5)">Daily Vitamins (+5)</button>
+</div>
+
+<div class="section">
+<h3>Focus Sprint</h3>
+<button class="timer" onclick="startSprint()">Start 30m Sprint</button>
+</div>
+
+<div class="section">
+<h3>Penalties</h3>
+<button class="bad" onclick="addXP(-15)">Phone in Bed (-15)</button>
+<button class="bad" onclick="addXP(-20)">Screen Time >4h (-20)</button>
+<button class="bad" onclick="addXP(-50)">FAP (-50)</button>
+</div>
+
+<div class="section">
+<h3>Side Quests</h3>
+<input id="questName" placeholder="Quest name">
+<input id="questXP" type="number" placeholder="XP reward">
+<button class="good" onclick="addQuest()">Add Side Quest</button>
+<div id="questList"></div>
+</div>
+
+<script>
+let xp = Number(localStorage.getItem("xp")) || 0;
+let quests = JSON.parse(localStorage.getItem("quests")) || [];
+let lastDate = localStorage.getItem("date");
+
+const today = new Date().toDateString();
+if (lastDate !== today) {
+  quests.forEach(q => q.done = false);
+  localStorage.setItem("date", today);
+}
+
+document.getElementById("xp").textContent = xp;
+
+function save() {
+  localStorage.setItem("xp", xp);
+  localStorage.setItem("quests", JSON.stringify(quests));
+  renderQuests();
+  document.getElementById("xp").textContent = xp;
+}
+
+function addXP(amount) {
+  xp += amount;
+  if (xp < 0) xp = 0;
+  save();
+}
+
+function startSprint() {
+  alert("Sprint started. Stay off your phone for 30 minutes.");
+  setTimeout(() => {
+    if (confirm("Sprint complete without phone?")) {
+      addXP(15);
+    }
+  }, 1800000);
+}
+
+function addQuest() {
+  const name = questName.value.trim();
+  const value = Number(questXP.value);
+  if (!name || !value) return;
+  quests.push({ name, value, done: false });
+  questName.value = "";
+  questXP.value = "";
+  save();
+}
+
+function completeQuest(index) {
+  if (quests[index].done) return;
+  quests[index].done = true;
+  addXP(quests[index].value);
+}
+
+function renderQuests() {
+  const list = document.getElementById("questList");
+  list.innerHTML = "";
+  quests.forEach((q, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = `${q.name} (+${q.value})`;
+    btn.className = q.done ? "locked" : "good";
+    btn.onclick = () => completeQuest(i);
+    list.appendChild(btn);
+  });
+}
+
+renderQuests();
+</script>
+
+</body>
+</html>

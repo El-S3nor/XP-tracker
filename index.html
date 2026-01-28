@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XP Tracker</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: radial-gradient(circle at top, #0b1220, #020617);
+  color: #e5e7eb;
+  padding: 16px;
+}
+.card {
+  background: linear-gradient(180deg, #020617, #020617);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+}
+h1, h2, h3 { margin: 0 0 12px 0; }
+button, input {
+  width: 100%;
+  padding: 14px;
+  margin: 6px 0;
+  border-radius: 10px;
+  border: none;
+  font-size: 16px;
+}
+.good { background: #16a34a; color: white; }
+.bad { background: #dc2626; color: white; }
+.timer { background: #22c55e; color: white; }
+.locked { background: #334155; color: #94a3b8; }
+.center { text-align: center; }
+.small { opacity: 0.7; font-size: 14px; }
+</style>
+</head>
+
+<body>
+
+<div class="card center">
+  <h2>Level: <span id="level">1</span></h2>
+  <div>XP: <span id="xp">0</span> / <span id="xpNext">100</span></div>
+  <div class="small">Streak: <span id="streak">0</span> days</div>
+  <div class="small" id="dateText"></div>
+</div>
+
+<div class="card">
+  <h3>Earn XP</h3>
+  <button class="good" onclick="addXP(15)">Exercise +15</button>
+  <button class="good" onclick="addXP(15)">Skill Learning (15+ min) +15</button>
+  <button class="good" onclick="addXP(20)">Phone-Free Morning +20</button>
+  <button class="good" onclick="addXP(20)">Phone-Free Evening +20</button>
+  <button class="good" onclick="addXP(5)">Walk Loop 1 +5</button>
+  <button class="good" onclick="addXP(5)">Walk Loop 2 +5</button>
+  <button class="good" onclick="addXP(10)">Meditation (10+ min) +10</button>
+
+  <div class="small" style="margin-top:10px;">Stretching +5 each</div>
+  <button class="good" onclick="addXP(5)">Legs</button>
+  <button class="good" onclick="addXP(5)">Hips</button>
+  <button class="good" onclick="addXP(5)">Back</button>
+  <button class="good" onclick="addXP(5)">Shoulders</button>
+</div>
+
+<div class="card">
+  <h3>Water & Vitamins</h3>
+  <button class="good" onclick="addXP(2)">Drink Water +2 (stackable)</button>
+  <button class="good" onclick="addXP(3)">Daily Vitamins +3</button>
+</div>
+
+<div class="card">
+  <h3>Phone Penalties</h3>
+  <button class="bad" onclick="addXP(-10)">Phone Game -10</button>
+  <button class="bad" onclick="addXP(-10)">Browser Scrolling -10</button>
+  <button class="bad" onclick="addXP(-15)">Phone in Bed -15</button>
+  <button class="bad" onclick="addXP(-20)">Screen Time >4hr -20</button>
+  <button class="bad" onclick="addXP(-50)">FAP -50</button>
+</div>
+
+<div class="card">
+  <h3>Focus Sprint Timer</h3>
+  <div class="center" id="timer">00:00</div>
+  <button class="timer" onclick="startSprint(15)">Start Short Sprint (15 min)</button>
+  <button class="timer" onclick="startSprint(30)">Start Standard Sprint (30 min)</button>
+  <button class="good" onclick="completeSprint()">Complete Sprint</button>
+</div>
+
+<!-- SIDE QUESTS (after Focus Sprint as requested) -->
+<div class="card">
+  <h3>Side Quests</h3>
+  <input id="questName" placeholder="Quest name">
+  <input id="questXP" type="number" placeholder="XP reward">
+  <button class="good" onclick="addQuest()">Add Side Quest</button>
+  <div id="questList"></div>
+</div>
+
+<script>
+let totalXP = Number(localStorage.getItem("totalXP")) || 0;
+let level = Number(localStorage.getItem("level")) || 1;
+let streak = Number(localStorage.getItem("streak")) || 0;
+let lastDate = localStorage.getItem("lastDate");
+let quests = JSON.parse(localStorage.getItem("quests")) || [];
+
+let sprintMinutes = 0;
+let sprintActive = false;
+
+const today = new Date().toDateString();
+document.getElementById("dateText").textContent = today;
+
+// Daily reset logic for side quests
+if (lastDate !== today) {
+  quests.forEach(q => q.done = false);
+  streak += 1;
+  localStorage.setItem("streak", streak);
+  localStorage.setItem("lastDate", today);
+}
+
+function xpToNextLevel() {
+  return 100 + (level - 1) * 20;
+}
+
+function updateUI() {
+  document.getElementById("xp").textContent = totalXP;
+  document.getElementById("level").textContent = level;
+  document.getElementById("xpNext").textContent = xpToNextLevel();
+  document.getElementById("streak").textContent = streak;
+  renderQuests();
+}
+
+function saveAll() {
+  localStorage.setItem("totalXP", totalXP);
+  localStorage.setItem("level", level);
+  localStorage.setItem("quests", JSON.stringify(quests));
+}
+
+function addXP(amount) {
+  totalXP += amount;
+  if (totalXP < 0) totalXP = 0;
+
+  while (totalXP >= xpToNextLevel()) {
+    totalXP -= xpToNextLevel();
+    level += 1;
+  }
+
+  saveAll();
+  updateUI();
+}
+
+// Sprint logic
+function startSprint(mins) {
+  sprintMinutes = mins;
+  sprintActive = true;
+  document.getElementById("timer").textContent = mins + ":00";
+  alert("Sprint started for " + mins + " minutes. Stay focused!");
+}
+
+function completeSprint() {
+  if (!sprintActive) {
+    alert("No active sprint.");
+    return;
+  }
+  sprintActive = false;
+  const reward = sprintMinutes === 15 ? 10 : 20;
+  addXP(reward);
+  document.getElementById("timer").textContent = "00:00";
+}
+
+// Side Quests
+function addQuest() {
+  const name = questName.value.trim();
+  const value = Number(questXP.value);
+  if (!name || !value) return;
+  quests.push({ name, value, done: false });
+  questName.value = "";
+  questXP.value = "";
+  saveAll();
+  renderQuests();
+}
+
+function completeQuest(i) {
+  if (quests[i].done) return;
+  quests[i].done = true;
+  addXP(quests[i].value);
+}
+
+function renderQuests() {
+  const list = document.getElementById("questList");
+  list.innerHTML = "";
+  quests.forEach((q, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = `${q.name} +${q.value}`;
+    btn.className = q.done ? "locked" : "good";
+    btn.onclick = () => completeQuest(i);
+    list.appendChild(btn);
+  });
+}
+
+updateUI();
+</script>
+
+</body>
+</html>
